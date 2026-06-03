@@ -48,6 +48,7 @@ class RecordingShortcutManager: ObservableObject {
     private let powerModeShortcutManager: PowerModeShortcutManager
     private let shortcutMonitor = ShortcutMonitor()
     private var shortcutChangeObserver: NSObjectProtocol?
+    private var appDidBecomeActiveObserver: NSObjectProtocol?
     private let shortcutModeHandler: RecordingShortcutModeHandler
     private let primaryRecordingShortcutModeSource: RecordingShortcutModeSource
 
@@ -141,8 +142,14 @@ class RecordingShortcutManager: ObservableObject {
 
         self.engine = engine
         self.recorderUIManager = recorderUIManager
-        self.miniRecorderShortcutManager = MiniRecorderShortcutManager(engine: engine, recorderUIManager: recorderUIManager)
         self.shortcutModeHandler = shortcutModeHandler
+        self.miniRecorderShortcutManager = MiniRecorderShortcutManager(
+            engine: engine,
+            recorderUIManager: recorderUIManager,
+            activeHeldModifierFlags: { [weak shortcutModeHandler] in
+                shortcutModeHandler?.activeHeldModifierFlags ?? []
+            }
+        )
         self.primaryRecordingShortcutModeSource = primaryRecordingShortcutModeSource
         self.powerModeShortcutManager = PowerModeShortcutManager(
             modeProvider: {
@@ -153,6 +160,16 @@ class RecordingShortcutManager: ObservableObject {
 
         shortcutChangeObserver = NotificationCenter.default.addObserver(
             forName: ShortcutStore.shortcutDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshShortcutMonitoring()
+            }
+        }
+
+        appDidBecomeActiveObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
@@ -249,6 +266,7 @@ class RecordingShortcutManager: ObservableObject {
                             eventTime: eventTime,
                             mode: mode
                         )
+                        self.miniRecorderShortcutManager.refreshVisibleShortcuts()
                     } else {
                         await self.handleGlobalShortcut(action)
                     }
@@ -330,6 +348,9 @@ class RecordingShortcutManager: ObservableObject {
         if let shortcutChangeObserver {
             NotificationCenter.default.removeObserver(shortcutChangeObserver)
         }
+        if let appDidBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(appDidBecomeActiveObserver)
+        }
 
         MainActor.assumeIsolated {
             removeAllMonitoring()
@@ -392,6 +413,14 @@ final class RecordingShortcutModeHandler {
         activeRecordingShortcutAction = nil
         interruptedRecordingActions.removeAll()
         activeShortcutCanCancelAccidentalStart = false
+    }
+
+    var activeHeldModifierFlags: NSEvent.ModifierFlags {
+        guard isShortcutPressed, let activeRecordingShortcutAction else {
+            return []
+        }
+
+        return ShortcutStore.shortcut(for: activeRecordingShortcutAction)?.modifierFlags ?? []
     }
 
     func handleKeyDown(
