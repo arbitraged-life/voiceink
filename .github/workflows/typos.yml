@@ -13,4 +13,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check spelling
-        uses: crate-ci/typos@f989825b9c70c3c0de1e3f1b8c2c16d1ed2b6873 # v1.47.0
+        uses: crate-ci/typos@v1.47.0
