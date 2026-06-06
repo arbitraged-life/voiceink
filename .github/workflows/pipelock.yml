@@ -1,3 +1,5 @@
+# Org-standard policy workflow — thin caller for the shared reusable in
+# NERV-es/.github. Byte-identical across every NERV-es fork.
 name: Pipelock Agent Security Scan
 
 on:
@@ -12,15 +14,5 @@ permissions:
 
 jobs:
   pipelock:
-    name: Agent egress / secret scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Run Pipelock scan
-        uses: luckyPipewrench/pipelock@6d8aaf4a6e8b64d800a3b7d444c924049a9f21d0 # v1.3.0
-        with:
-          scan-diff: true
-          fail-on-findings: true
+    uses: NERV-es/.github/.github/workflows/pipelock-reusable.yml@c942996fd330257189a6d85e47d3201509b28e3a
+    secrets: inherit
