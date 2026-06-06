@@ -208,12 +208,17 @@ class MiniRecorderShortcutManager: ObservableObject {
         UInt16(kVK_ANSI_0)
     ]
 
+    /// Modifier bits that are meaningful for hotkey definitions. Ambient flags such
+    /// as `.capsLock`, `.numericPad`, `.function`, or other device-dependent bits must
+    /// be stripped so they don't leak into shortcut registration or break equality checks.
+    private static let relevantModifierMask: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
+
     static func promptDigitModifierFlags(ambientModifierFlags: NSEvent.ModifierFlags) -> NSEvent.ModifierFlags {
-        NSEvent.ModifierFlags.command.union(ambientModifierFlags)
+        NSEvent.ModifierFlags.command.union(ambientModifierFlags.intersection(relevantModifierMask))
     }
 
     static func powerModeDigitModifierFlags(ambientModifierFlags: NSEvent.ModifierFlags) -> NSEvent.ModifierFlags {
-        NSEvent.ModifierFlags.option.union(ambientModifierFlags)
+        NSEvent.ModifierFlags.option.union(ambientModifierFlags.intersection(relevantModifierMask))
     }
 
     static func shouldRegisterPowerModeDigitShortcuts(ambientModifierFlags: NSEvent.ModifierFlags) -> Bool {

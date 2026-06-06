@@ -46,8 +46,8 @@ class CursorPaster {
     @MainActor
     private static func performPasteSession(_ text: String) async -> PasteResult {
         if PasteMethod.current() == .directTyping {
-            await typeTextDirectly(text)
-            return .commandPosted
+            let posted = await typeTextDirectly(text)
+            return posted ? .commandPosted : .commandNotPosted
         }
 
         let pasteboard = NSPasteboard.general
@@ -241,13 +241,17 @@ class CursorPaster {
     // Remote desktop clients forward individual keystrokes to the remote machine, so
     // this bypasses the Mac↔Windows clipboard sync problem entirely.
     @MainActor
-    private static func typeTextDirectly(_ text: String) async {
+    @discardableResult
+    private static func typeTextDirectly(_ text: String) async -> Bool {
         guard AXIsProcessTrusted() else {
             logger.error("Accessibility not trusted — cannot type text directly")
-            return
+            return false
         }
 
-        let source = CGEventSource(stateID: .privateState)
+        guard let source = CGEventSource(stateID: .privateState) else {
+            logger.error("Failed to create CGEventSource — cannot type text directly")
+            return false
+        }
         // Give the recorder UI time to dismiss and hand focus back before the
         // first character. Some apps/remote-desktop clients drop the first event
         // if typing starts while focus is still settling.
@@ -257,23 +261,32 @@ class CursorPaster {
         // keystroke without dropping characters, fast enough for normal usage.
         let interKeyDelay: UInt64 = 5_000_000
 
+        var postedAny = false
         for scalar in text.unicodeScalars {
             // Represent each Unicode scalar as a UTF-16 code unit sequence so that
             // characters outside the BMP (e.g. emoji) are encoded as surrogate pairs.
             var utf16Units = Array(String(scalar).utf16)
 
-            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true)
-            keyDown?.keyboardSetUnicodeString(stringLength: utf16Units.count, unicodeString: &utf16Units)
-            keyDown?.post(tap: .cghidEventTap)
+            guard let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
+                  let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) else {
+                logger.error("Failed to create CGEvent for direct typing — skipping a character")
+                continue
+            }
 
-            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false)
-            keyUp?.keyboardSetUnicodeString(stringLength: utf16Units.count, unicodeString: &utf16Units)
-            keyUp?.post(tap: .cghidEventTap)
+            keyDown.keyboardSetUnicodeString(stringLength: utf16Units.count, unicodeString: &utf16Units)
+            keyDown.post(tap: .cghidEventTap)
+
+            keyUp.keyboardSetUnicodeString(stringLength: utf16Units.count, unicodeString: &utf16Units)
+            keyUp.post(tap: .cghidEventTap)
+            postedAny = true
 
             try? await Task.sleep(nanoseconds: interKeyDelay)
         }
 
-        logger.notice("Direct-typed \(text.unicodeScalars.count) characters")
+        if postedAny {
+            logger.notice("Direct-typed \(text.unicodeScalars.count) characters")
+        }
+        return postedAny || text.isEmpty
     }
 
     // MARK: - Paste then Auto Send
@@ -338,10 +351,11 @@ class CursorPaster {
         var focusedElement: AnyObject?
         let result = AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement)
 
-        guard result == .success, let element = focusedElement else { return nil }
+        guard result == .success,
+              let element = focusedElement as? AXUIElement else { return nil }
 
         var value: AnyObject?
-        let valueResult = AXUIElementCopyAttributeValue(element as! AXUIElement, kAXValueAttribute as CFString, &value)
+        let valueResult = AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value)
 
         guard valueResult == .success, let stringValue = value as? String else { return nil }
         return stringValue
