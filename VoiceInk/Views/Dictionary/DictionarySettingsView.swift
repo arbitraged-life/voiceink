@@ -1,52 +1,68 @@
 import SwiftUI
-import SwiftData
 
 struct DictionarySettingsView: View {
-    @Environment(\.modelContext) private var modelContext
     @State private var selectedSection: DictionarySection = .replacements
     @State private var isShowingSettings = false
-    let whisperPrompt: WhisperPrompt
+    private let dictionaryInfoMessage = "Word Replacements run after transcription. Vocabulary is used with AI enhancement to better understand names, technical terms, and unique spellings in your transcript."
     
-    enum DictionarySection: String, CaseIterable {
+    enum DictionarySection: String, CaseIterable, Hashable {
         case replacements = "Word Replacements"
         case spellings = "Vocabulary"
         
         var description: String {
             switch self {
             case .spellings:
+<<<<<<< HEAD
                 return "Add custom words and acronyms to teach VoiceInk's AI proper recognition"
             case .replacements:
                 return "Automatically replace specific transcribed phrases with custom formatted text"
+=======
+                return "Vocabulary is used only with AI enhancement to preserve important names, technical terms, and unique spellings in the final output."
+            case .replacements:
+                return "Word Replacements run after transcription to replace misheard words, phrases, abbreviations, or boilerplate text."
+>>>>>>> upstream/main
             }
         }
-        
-        var icon: String {
+
+        var systemImage: String {
             switch self {
             case .spellings:
-                return "character.book.closed.fill"
+                return "character.book.closed"
             case .replacements:
-                return "arrow.2.squarepath"
+                return "arrow.left.arrow.right"
             }
         }
     }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                heroSection
-                mainContent
+        VStack(spacing: 0) {
+            headerSection
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
+                    sectionSelector
+                    selectedSectionForm
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+                .padding(.bottom, 28)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 600, minHeight: 500)
+<<<<<<< HEAD
         .background(Color(red: 0.97, green: 0.97, blue: 0.98))
         .slidingPanel(isPresented: $isShowingSettings, width: 400) {
+=======
+        .sidePanel(isPresented: $isShowingSettings) {
+>>>>>>> upstream/main
             DictionarySettingsPanel {
-                withAnimation(.smooth(duration: 0.3)) {
-                    isShowingSettings = false
-                }
+                isShowingSettings = false
             }
         }
     }
+<<<<<<< HEAD
     
     private var heroSection: some View {
         VStack(spacing: 12) {
@@ -120,9 +136,38 @@ struct DictionarySettingsView: View {
                 }
             }
         }
+=======
+
+    private var headerSection: some View {
+        AppScreenHeader(title: "Dictionary", infoMessage: dictionaryInfoMessage) {
+            settingsButton
+        }
+    }
+
+    private var settingsButton: some View {
+        AppIconButton(
+            systemName: "gearshape.fill",
+            help: "Dictionary Settings"
+        ) {
+            isShowingSettings.toggle()
+        }
+    }
+
+    private var sectionSelector: some View {
+        DictionarySectionSwitcher(selection: $selectedSection)
+    }
+
+    private var selectedSectionForm: some View {
+        DictionaryGroupedSection {
+            selectedSectionContent
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+>>>>>>> upstream/main
     }
     
+    @ViewBuilder
     private var selectedSectionContent: some View {
+<<<<<<< HEAD
         VStack(alignment: .leading, spacing: 20) {
             switch selectedSection {
             case .spellings:
@@ -138,17 +183,70 @@ struct DictionarySettingsView: View {
                     .cornerRadius(12)
                     .shadow(color: Color.black.opacity(0.01), radius: 4, x: 0, y: 2)
             }
+=======
+        switch selectedSection {
+        case .spellings:
+            VocabularyView()
+        case .replacements:
+            WordReplacementView()
+>>>>>>> upstream/main
         }
     }
 }
 
-struct SectionCard: View {
+private struct DictionaryGroupedSection<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content()
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(sectionBackground)
+        .overlay(sectionBorder)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var sectionBackground: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(AppTheme.Surface.card)
+    }
+
+    private var sectionBorder: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .stroke(AppTheme.Border.control.opacity(0.16), lineWidth: 1)
+    }
+}
+
+private struct DictionarySectionSwitcher: View {
+    @Binding var selection: DictionarySettingsView.DictionarySection
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(DictionarySettingsView.DictionarySection.allCases, id: \.self) { section in
+                DictionarySectionButton(
+                    section: section,
+                    isSelected: selection == section
+                ) {
+                    withAnimation(.easeInOut(duration: 0.16)) {
+                        selection = section
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct DictionarySectionButton: View {
     let section: DictionarySettingsView.DictionarySection
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
+<<<<<<< HEAD
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     ZStack {
@@ -196,7 +294,40 @@ struct SectionCard: View {
                     .stroke(isSelected ? Color(red: 0.36, green: 0.28, blue: 0.88).opacity(0.15) : Color.primary.opacity(0.04), lineWidth: 1.5)
             )
             .shadow(color: isSelected ? Color(red: 0.36, green: 0.28, blue: 0.88).opacity(0.02) : Color.black.opacity(0.01), radius: 6, x: 0, y: 3)
+=======
+            DictionarySectionButtonLabel(
+                title: section.rawValue,
+                icon: section.systemImage,
+                isSelected: isSelected
+            )
+>>>>>>> upstream/main
         }
         .buttonStyle(.plain)
+        .help(section.description)
     }
-} 
+}
+
+private struct DictionarySectionButtonLabel: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+
+            Text(title)
+                .font(.system(size: 14, weight: isSelected ? .semibold : .medium))
+        }
+        .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(
+            AppCardBackground(isSelected: isSelected, cornerRadius: 22)
+        )
+        .contentShape(Rectangle())
+    }
+}

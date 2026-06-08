@@ -95,6 +95,18 @@ struct InlineHistoryView: View {
         }
     }
 
+    private func openPanel(mode: PanelMode, transcriptionID: UUID? = nil) {
+        panelMode = mode
+        panelTranscriptionId = transcriptionID
+
+        isPanelPresented = true
+    }
+
+    private func closePanel() {
+        isPanelPresented = false
+        panelMode = .info
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             // MARK: - Left Sidebar Pane
@@ -150,6 +162,7 @@ struct InlineHistoryView: View {
 
                 Divider().opacity(0.5)
 
+<<<<<<< HEAD
                 // List View
                 if filteredTranscriptions.isEmpty && !isLoading {
                     VStack(spacing: 12) {
@@ -297,9 +310,28 @@ struct InlineHistoryView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.white)
                 }
+=======
+            if !selectedTranscriptions.isEmpty {
+                Divider()
+                selectionBar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: selectedTranscriptions.isEmpty)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .sidePanel(isPresented: .init(
+            get: { isPanelPresented },
+            set: { newValue in
+                if !newValue { closePanel() }
+>>>>>>> upstream/main
+            }
+        )) {
+            panelContent
+        }
+<<<<<<< HEAD
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+=======
+>>>>>>> upstream/main
         .alert("Delete Selected Items?", isPresented: $showDeleteConfirmation) {
             Button("Delete", role: .destructive) {
                 deleteSelectedTranscriptions()
@@ -334,10 +366,195 @@ struct InlineHistoryView: View {
                 Task {
                     await resetPagination()
                     await loadInitialContent()
+<<<<<<< HEAD
                     if selectedDetailTranscription == nil {
                         selectedDetailTranscription = displayedTranscriptions.first
                     }
                 }
+=======
+                }
+            }
+        }
+    }
+
+    // MARK: - Top Bar
+
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                TextField("Search transcriptions...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(AppTheme.Surface.card)
+            )
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 10)
+    }
+
+    private var selectionBar: some View {
+        HStack(spacing: 16) {
+            Text("\(selectedTranscriptions.count) selected")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            Button(action: {
+                openPanel(mode: .analysis)
+            }) {
+                Label("Analyze", systemImage: "chart.bar.xaxis")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
+
+            Button(action: {
+                exportService.exportTranscriptionsToCSV(transcriptions: Array(selectedTranscriptions))
+            }) {
+                Label("Export", systemImage: "square.and.arrow.up")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
+
+            Button(action: { showDeleteConfirmation = true }) {
+                Label("Delete", systemImage: "trash")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(AppTheme.Status.error.opacity(0.80))
+
+            Divider()
+                .frame(height: 16)
+
+            if allSelected {
+                Button("Deselect All") {
+                    selectedTranscriptions.removeAll()
+                }
+                .font(.system(size: 12, weight: .medium))
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+            } else {
+                Button("Select All") {
+                    Task { await selectAllTranscriptions() }
+                }
+                .font(.system(size: 12, weight: .medium))
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 10)
+        .background(
+            AppTheme.Surface.window
+                .shadow(color: Color.black.opacity(0.1), radius: 3, y: -2)
+        )
+    }
+
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 40))
+                .foregroundColor(.secondary)
+            Text(searchText.isEmpty ? "No transcriptions yet" : "No results found")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.secondary)
+            Text(searchText.isEmpty ? "Your transcription history will appear here" : "Try a different search term")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary.opacity(0.8))
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Card List
+
+    private var cardListView: some View {
+        Form {
+            ForEach(displayedTranscriptions) { transcription in
+                Section {
+                    HistoryCardRow(
+                        transcription: transcription,
+                        isExpanded: expandedId == transcription.id,
+                        isChecked: selectedTranscriptions.contains(transcription),
+                        onToggleExpand: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                expandedId = expandedId == transcription.id ? nil : transcription.id
+                            }
+                        },
+                        onToggleCheck: { toggleSelection(transcription) },
+                        onShowInfo: {
+                            openPanel(mode: .info, transcriptionID: transcription.id)
+                        }
+                    )
+                }
+            }
+
+            if hasMoreContent {
+                Section {
+                    Button(action: {
+                        Task { await loadMoreContent() }
+                    }) {
+                        HStack(spacing: 8) {
+                            if isLoading {
+                                ProgressView().controlSize(.small)
+                            }
+                            Text(isLoading ? "Loading..." : "Load More")
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isLoading)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Side Panel
+
+    @ViewBuilder
+    private var panelContent: some View {
+        switch panelMode {
+        case .info:
+            infoPanelContent
+        case .analysis:
+            PerformanceAnalysisPanelView(
+                transcriptions: Array(selectedTranscriptions),
+                onClose: {
+                    closePanel()
+                }
+            )
+            .id(selectedTranscriptions.count)
+        }
+    }
+
+    private var infoPanelContent: some View {
+        VStack(spacing: 0) {
+            AppPanelHeader(title: "Info", onClose: closePanel)
+
+            if let transcription = panelTranscription {
+                TranscriptionInfoPanel(transcription: transcription)
+                    .id(transcription.id)
+            } else {
+                Spacer()
+>>>>>>> upstream/main
             }
         }
     }
@@ -404,7 +621,7 @@ struct InlineHistoryView: View {
 
         if panelTranscriptionId == transcription.id {
             panelTranscriptionId = nil
-            isPanelPresented = false
+            closePanel()
         }
 
         selectedTranscriptions.remove(transcription)
@@ -599,6 +816,7 @@ struct TranscriptionDetailsPane: View {
                 }
                 
                 Spacer()
+<<<<<<< HEAD
                 
                 // Header Actions
                 HStack(spacing: 8) {
@@ -615,6 +833,79 @@ struct TranscriptionDetailsPane: View {
                             .padding(.vertical, 6)
                             .background(Color(red: 0.36, green: 0.28, blue: 0.88).opacity(0.08))
                             .cornerRadius(6)
+=======
+
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(.secondary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .animation(.easeInOut(duration: 0.2), value: isExpanded)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onToggleExpand() }
+
+            if isExpanded {
+                expandedContent
+                    .padding(.top, 10)
+            }
+        }
+    }
+
+    // MARK: - Expanded Content
+
+    private var expandedContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Tabs
+            if transcription.enhancedText != nil {
+                HStack(spacing: 4) {
+                    ForEach(TranscriptionTab.allCases, id: \.self) { tab in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                selectedTab = tab
+                            }
+                        } label: {
+                            Text(tab.rawValue)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(selectedTab == tab ? .primary : .secondary)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(selectedTab == tab ? AppTheme.Surface.controlActive : Color.clear)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                }
+            }
+
+            ScrollView {
+                MarkdownContentView(
+                    displayText,
+                    fontSize: 14,
+                    foregroundColor: AppTheme.Text.primary
+                )
+            }
+            .frame(maxHeight: 350)
+            .overlay(alignment: .bottomTrailing) {
+                CopyIconButton(textToCopy: displayText)
+                    .padding(8)
+            }
+
+            if hasAudioFile, let urlString = transcription.audioFileURL,
+               let url = URL(string: urlString) {
+                Divider()
+                AudioPlayerView(url: url, transcription: transcription, onInfoTap: onShowInfo)
+                    .padding(.vertical, 4)
+            } else {
+                HStack {
+                    Spacer()
+                    Button(action: onShowInfo) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+>>>>>>> upstream/main
                     }
                     .buttonStyle(.plain)
 
@@ -829,6 +1120,7 @@ struct TranscriptionDetailsPane: View {
         }
         .background(Color.white)
     }
+<<<<<<< HEAD
 
     private var statusColor: Color {
         let rawStatus = transcription.transcriptionStatus ?? "completed"
@@ -964,3 +1256,6 @@ struct EdgeBorder: Shape {
         return path
     }
 }
+=======
+}
+>>>>>>> upstream/main

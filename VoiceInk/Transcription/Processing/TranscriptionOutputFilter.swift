@@ -52,8 +52,6 @@ struct TranscriptionOutputFilter {
     private static let lowercaseTranscriptionKey = "LowercaseTranscription"
     private static let apostropheLikeCharacters = CharacterSet(charactersIn: "'''ʼ＇")
     
-    // MARK: - Pre-compiled Regexes (avoids recompilation on every transcription)
-    
     private static let tagBlockRegex = try! NSRegularExpression(pattern: #"<([A-Za-z][A-Za-z0-9:_-]*)[^>]*>[\s\S]*?</\1>"#)
     private static let hallucinationRegexes: [NSRegularExpression] = [
         try! NSRegularExpression(pattern: #"\[.*?\]"#),
@@ -67,17 +65,14 @@ struct TranscriptionOutputFilter {
     static func filter(_ text: String) -> String {
         var filteredText = text
 
-        // Remove <TAG>...</TAG> blocks
         var range = NSRange(filteredText.startIndex..., in: filteredText)
         filteredText = tagBlockRegex.stringByReplacingMatches(in: filteredText, options: [], range: range, withTemplate: "")
 
-        // Remove bracketed hallucinations
         for regex in hallucinationRegexes {
             range = NSRange(filteredText.startIndex..., in: filteredText)
             filteredText = regex.stringByReplacingMatches(in: filteredText, options: [], range: range, withTemplate: "")
         }
 
-        // Remove filler words (if enabled) — uses pre-compiled regexes from FillerWordManager
         if FillerWordManager.shared.isEnabled {
             for regex in FillerWordManager.shared.compiledFillerRegexes {
                 range = NSRange(filteredText.startIndex..., in: filteredText)
@@ -85,7 +80,6 @@ struct TranscriptionOutputFilter {
             }
         }
 
-        // Smart Silence & Filler Stripper
         if UserDefaults.standard.bool(forKey: "superchargeSmartFillerStripper") {
             range = NSRange(filteredText.startIndex..., in: filteredText)
             filteredText = repeatedWordRegex.stringByReplacingMatches(in: filteredText, options: [], range: range, withTemplate: "$1")
@@ -93,12 +87,18 @@ struct TranscriptionOutputFilter {
             filteredText = hesitationRegex.stringByReplacingMatches(in: filteredText, options: [], range: range, withTemplate: "")
         }
 
-        // Clean whitespace
+        for fillerWord in FillerWordManager.shared.fillerWords {
+            let pattern = "\\b\(NSRegularExpression.escapedPattern(for: fillerWord))\\b[,.]?"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                let range = NSRange(filteredText.startIndex..., in: filteredText)
+                filteredText = regex.stringByReplacingMatches(in: filteredText, options: [], range: range, withTemplate: "")
+            }
+        }
+
         range = NSRange(filteredText.startIndex..., in: filteredText)
         filteredText = multiSpaceRegex.stringByReplacingMatches(in: filteredText, options: [], range: range, withTemplate: " ")
         filteredText = filteredText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Context-Aware Auto-Formatting
         if UserDefaults.standard.bool(forKey: "superchargeContextAwareFormatting") {
             filteredText = applyContextAwareFormatting(filteredText)
         }
@@ -119,17 +119,14 @@ struct TranscriptionOutputFilter {
     static func applyContextAwareFormatting(_ text: String) -> String {
         guard let bundleId = frontmostAppBundleIdentifier?.lowercased() else { return text }
         
-        // Developer apps
         if bundleId.contains("vscode") || bundleId.contains("xcode") || bundleId.contains("terminal") || bundleId.contains("iterm") {
             return formatForDeveloper(text)
         }
         
-        // Chat apps
         if bundleId.contains("slack") || bundleId.contains("discord") || bundleId.contains("teams") {
             return formatForChat(text)
         }
         
-        // Email/Writing apps
         if bundleId.contains("mail") || bundleId.contains("outlook") || bundleId.contains("pages") {
             return formatForEmail(text)
         }
@@ -137,7 +134,6 @@ struct TranscriptionOutputFilter {
         return text
     }
 
-    // Pre-compiled developer formatting regexes
     private static let techTermRegexes: [(NSRegularExpression, String)] = {
         let terms = [
             "javascript": "JavaScript", "typescript": "TypeScript",
@@ -198,7 +194,6 @@ struct TranscriptionOutputFilter {
         return formatted
     }
     
-    // Pre-compiled email formatting regexes
     private static let emailBreakRegexes: [NSRegularExpression] = {
         let breaks = ["dear ", "hi ", "hello ", "best regards", "sincerely", "thanks,", "thank you"]
         return breaks.compactMap { brk in
@@ -224,17 +219,12 @@ struct TranscriptionOutputFilter {
 
         var result = applyCleanupPreferences(text, punctuationMode: punctuationMode, shouldLowercase: shouldLowercase)
 
-        // Fix #666: Remove spurious periods inserted by whisper after structural markers
-        // e.g. ">.I was" → ">I was", "-.item" → "-item"
         result = removePeriodsAfterStructuralMarkers(result)
 
         return result
     }
 
-    /// Remove periods that whisper inserts after structural markers like >, -, *, •
     private static func removePeriodsAfterStructuralMarkers(_ text: String) -> String {
-        // Pattern: a structural marker followed by a period and then a letter/space
-        // This preserves legitimate uses like decimal numbers (3.14) or abbreviations
         let pattern = "([>\\-\\*•])\\. *(?=[\\p{L}])"
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
         let range = NSRange(text.startIndex..., in: text)
@@ -309,4 +299,4 @@ struct TranscriptionOutputFilter {
             .replacingOccurrences(of: #"\n[ \t]+"#, with: "\n", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
-} 
+}

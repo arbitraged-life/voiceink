@@ -52,5 +52,4 @@ class FillerWordManager: ObservableObject {
     func removeWord(_ word: String) {
         fillerWords.removeAll { $0.lowercased() == word.lowercased() }
     }
-
 }

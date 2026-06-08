@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import os
 
 final class ShortcutMonitor {
     fileprivate enum EventKind {
@@ -23,13 +24,11 @@ final class ShortcutMonitor {
     private var onShortcutInterrupted: ((ShortcutAction, TimeInterval) -> Void)?
     private var eventTap: CFMachPort?
     private var eventTapRunLoopSource: CFRunLoopSource?
+    private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "ShortcutMonitor")
 
-    private static var hasRequestedListenEventAccess = false
     private static let shortcutInterruptionWindow: TimeInterval = 1.0
-    /// Number of retry attempts for installing the event tap (macOS 26 race condition workaround)
     private static let eventTapInstallMaxRetries = 5
     private static let eventTapRetryDelay: TimeInterval = 0.5
-    /// Timer that checks if the event tap is still alive
     private var healthCheckTimer: Timer?
 
     deinit {
@@ -87,11 +86,9 @@ final class ShortcutMonitor {
         onShortcutInterrupted = nil
     }
 
-    /// Retry installing event tap with delays (macOS 26 workaround: permission grant may race with tap creation)
     private func installEventTapWithRetry() -> Bool {
         if installEventTap() { return true }
 
-        // Synchronous retry with short sleeps — only called during start()
         for attempt in 1...Self.eventTapInstallMaxRetries {
             logToFile("[ShortcutMonitor] Retry \(attempt)/\(Self.eventTapInstallMaxRetries) after \(Self.eventTapRetryDelay)s delay")
             Thread.sleep(forTimeInterval: Self.eventTapRetryDelay)
@@ -102,11 +99,9 @@ final class ShortcutMonitor {
         return false
     }
 
-    /// Periodically verify the event tap is still valid; reinstall if macOS killed it silently
     private func startHealthCheck() {
         healthCheckTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
             guard let self else { return }
-            // If the mach port is invalidated, macOS silently killed our tap
             if let tap = self.eventTap, !CFMachPortIsValid(tap) {
                 logToFile("[ShortcutMonitor] Health check: event tap invalidated by system, reinstalling")
                 self.teardownEventTap()
@@ -122,7 +117,6 @@ final class ShortcutMonitor {
         }
     }
 
-    /// Tear down the event tap without clearing shortcut state
     private func teardownEventTap() {
         if let source = eventTapRunLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
@@ -171,7 +165,7 @@ final class ShortcutMonitor {
             callback: callback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
-            logToFile("[ShortcutMonitor] installEventTap failed: CGEvent.tapCreate returned nil")
+            logger.error("Failed to install global shortcut event tap")
             return false
         }
         logToFile("[ShortcutMonitor] installEventTap succeeded: CGEventTap created successfully")
@@ -179,6 +173,7 @@ final class ShortcutMonitor {
         guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
             logToFile("[ShortcutMonitor] installEventTap failed: CFMachPortCreateRunLoopSource returned nil")
             CFMachPortInvalidate(eventTap)
+            logger.error("Failed to create global shortcut event tap run loop source")
             return false
         }
 
@@ -190,7 +185,6 @@ final class ShortcutMonitor {
         return true
     }
 
-    /// Pure preflight check — does NOT trigger a permission request. Safe to call from UI.
     static func hasListenEventAccess() -> Bool {
         CGPreflightListenEventAccess()
     }

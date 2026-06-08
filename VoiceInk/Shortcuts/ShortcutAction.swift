@@ -22,7 +22,7 @@ enum ShortcutAction: Hashable {
 
     var isStored: Bool {
         switch self {
-        case .miniRecorderEscape, .miniRecorderPrompt, .miniRecorderPowerMode:
+        case .recorderPanelEscape, .recorderPanelMode:
             return false
         default:
             return true
@@ -89,13 +89,15 @@ enum ShortcutAction: Hashable {
                 return "\(config.name) Power Mode"
             }
 
-            return "Power Mode"
-        case .miniRecorderEscape:
-            return "Mini Recorder Cancel"
-        case .miniRecorderPrompt(let index):
-            return "Select Prompt \(Self.displayNumber(forMiniRecorderIndex: index))"
-        case .miniRecorderPowerMode(let index):
-            return "Select Power Mode \(Self.displayNumber(forMiniRecorderIndex: index))"
+            if let template = StarterModeCatalog.templates.first(where: { $0.id == id }) {
+                return "\(template.name) Mode"
+            }
+
+            return "Mode"
+        case .recorderPanelEscape:
+            return "Recorder Cancel"
+        case .recorderPanelMode(let index):
+            return "Select Mode \(Self.displayNumber(forRecorderPanelIndex: index))"
         }
     }
 
@@ -108,9 +110,8 @@ enum ShortcutAction: Hashable {
         .cycleLanguageMode
     ]
 
-    static let miniRecorderStoredActions: [Self] = [
-        .cancelRecorder,
-        .toggleEnhancement
+    static let recorderPanelStoredActions: [Self] = [
+        .cancelRecorder
     ]
 
     static let legacyKeyboardShortcutActions: [Self] = [
@@ -121,11 +122,10 @@ enum ShortcutAction: Hashable {
         .retryLastTranscription,
         .cancelRecorder,
         .openHistoryWindow,
-        .quickAddToDictionary,
-        .toggleEnhancement
+        .quickAddToDictionary
     ]
 
-    private static func displayNumber(forMiniRecorderIndex index: Int) -> String {
+    private static func displayNumber(forRecorderPanelIndex index: Int) -> String {
         index == 9 ? "10" : "\(index + 1)"
     }
 }

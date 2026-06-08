@@ -1,9 +1,15 @@
 import SwiftUI
 import AppKit
 
+<<<<<<< HEAD
 class MiniRecorderPanel: NSPanel, NSWindowDelegate {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+=======
+class MiniRecorderPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+>>>>>>> upstream/main
     
     init(contentRect: NSRect) {
         super.init(
@@ -32,7 +38,11 @@ class MiniRecorderPanel: NSPanel, NSWindowDelegate {
     }
     
     static func calculateWindowMetrics() -> NSRect {
+        let width: CGFloat = 540
+        let height: CGFloat = 430
+
         guard let screen = NSScreen.main else {
+<<<<<<< HEAD
             return NSRect(x: 0, y: 0, width: 420, height: 180)
         }
 
@@ -45,6 +55,13 @@ class MiniRecorderPanel: NSPanel, NSWindowDelegate {
         let placement = UserDefaults.standard.string(forKey: "miniRecorderPlacement") ?? "bottom"
         let offsetX = CGFloat(UserDefaults.standard.double(forKey: "miniRecorderXOffset"))
         let offsetY = CGFloat(UserDefaults.standard.double(forKey: "miniRecorderYOffset"))
+=======
+            return NSRect(x: 0, y: 0, width: width, height: height)
+        }
+
+        // Host stays large enough for assistant output; SwiftUI controls the visible mini width.
+        let padding: CGFloat = 24
+>>>>>>> upstream/main
 
         let visibleFrame = screen.visibleFrame
         let padding: CGFloat = 24
@@ -80,6 +97,7 @@ class MiniRecorderPanel: NSPanel, NSWindowDelegate {
         orderFrontRegardless()
     }
     
+<<<<<<< HEAD
     func hide(completion: @escaping () -> Void) {
         completion()
     }
@@ -123,3 +141,6 @@ class MiniRecorderPanel: NSPanel, NSWindowDelegate {
         UserDefaults.standard.set(Double(offsetY), forKey: "miniRecorderYOffset")
     }
 } 
+=======
+} 
+>>>>>>> upstream/main
