@@ -4,14 +4,12 @@ import AppKit
 struct WhisperModelCardView: View {
     let model: WhisperModel
     let isDownloaded: Bool
-    let isCurrent: Bool
     let downloadProgress: [String: Double]
     let modelURL: URL?
     let isWarming: Bool
     
     // Actions
     var deleteAction: () -> Void
-    var setDefaultAction: () -> Void
     var downloadAction: () -> Void
     
     private var isDownloading: Bool {
@@ -129,48 +127,26 @@ struct WhisperModelCardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             
-            Spacer()
-            
             // Action Controls
             HStack(spacing: 12) {
-                if isCurrent {
-                    Text("Default Model")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color(red: 0.28, green: 0.65, blue: 0.45))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color(red: 0.28, green: 0.65, blue: 0.45).opacity(0.08))
-                        .cornerRadius(6)
-                } else if isDownloaded {
-                    Button(action: setDefaultAction) {
-                        Text("Set as Default")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color(red: 0.36, green: 0.28, blue: 0.88))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(Color(red: 0.36, green: 0.28, blue: 0.88).opacity(0.08))
-                            .cornerRadius(8)
-                    }
-                    .buttonStyle(.plain)
+                if isDownloaded {
+                    modelStatusPill("Downloaded", systemImage: "checkmark.circle")
                 } else {
                     Button(action: downloadAction) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             Text(isDownloading ? "Downloading..." : "Download")
-                                .font(.system(size: 12, weight: .bold))
-                            
+                                .font(.system(size: 12, weight: .medium))
                             Image(systemName: "arrow.down.circle")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.system(size: 12, weight: .medium))
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 7)
-                        .background(LinearGradient(
-                            colors: [Color(red: 0.36, green: 0.28, blue: 0.88), Color(red: 0.54, green: 0.12, blue: 0.92)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .cornerRadius(8)
-                        .shadow(color: Color(red: 0.36, green: 0.28, blue: 0.88).opacity(0.2), radius: 4, x: 0, y: 2)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(AppTheme.Accent.primary)
+                                .shadow(color: AppTheme.Accent.shadow, radius: 2, x: 0, y: 1)
+                        )
                     }
                     .buttonStyle(.plain)
                     .disabled(isDownloading)
@@ -181,7 +157,6 @@ struct WhisperModelCardView: View {
                         Button(action: deleteAction) {
                             Label("Delete Model", systemImage: "trash")
                         }
-                        
                         Button {
                             if let modelURL = modelURL {
                                 NSWorkspace.shared.selectFile(modelURL.path, inFileViewerRootedAtPath: "")
@@ -202,15 +177,17 @@ struct WhisperModelCardView: View {
                     .frame(width: 28, height: 28)
                 }
             }
+            .padding(14)
+            .background(Color.white)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color(red: 0.22, green: 0.24, blue: 0.35).opacity(0.04), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.012), radius: 6, x: 0, y: 2)
         }
-        .padding(14)
-        .background(Color.white)
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(isCurrent ? Color(red: 0.36, green: 0.28, blue: 0.88).opacity(0.15) : Color(red: 0.22, green: 0.24, blue: 0.35).opacity(0.04), lineWidth: isCurrent ? 1.5 : 1)
-        )
-        .shadow(color: Color.black.opacity(0.012), radius: 6, x: 0, y: 2)
+        .padding(16)
+        .background(AppMaterialCardBackground())
     }
 }
 
@@ -219,11 +196,9 @@ struct WhisperModelCardView: View {
 struct ImportedWhisperModelCardView: View {
     let model: ImportedWhisperModel
     let isDownloaded: Bool
-    let isCurrent: Bool
     let modelURL: URL?
 
     var deleteAction: () -> Void
-    var setDefaultAction: () -> Void
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
@@ -258,25 +233,8 @@ struct ImportedWhisperModelCardView: View {
             Spacer()
             
             HStack(spacing: 12) {
-                if isCurrent {
-                    Text("Default Model")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color(red: 0.28, green: 0.65, blue: 0.45))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color(red: 0.28, green: 0.65, blue: 0.45).opacity(0.08))
-                        .cornerRadius(6)
-                } else if isDownloaded {
-                    Button(action: setDefaultAction) {
-                        Text("Set as Default")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color(red: 0.36, green: 0.28, blue: 0.88))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(Color(red: 0.36, green: 0.28, blue: 0.88).opacity(0.08))
-                            .cornerRadius(8)
-                    }
-                    .buttonStyle(.plain)
+                if isDownloaded {
+                    modelStatusPill("Imported", systemImage: "checkmark.circle")
                 }
                 
                 if isDownloaded {
@@ -305,13 +263,47 @@ struct ImportedWhisperModelCardView: View {
                 }
             }
         }
-        .padding(14)
-        .background(Color.white)
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(isCurrent ? Color(red: 0.36, green: 0.28, blue: 0.88).opacity(0.15) : Color(red: 0.22, green: 0.24, blue: 0.35).opacity(0.04), lineWidth: isCurrent ? 1.5 : 1)
-        )
-        .shadow(color: Color.black.opacity(0.012), radius: 6, x: 0, y: 2)
+        .padding(16)
+        .background(AppMaterialCardBackground())
     }
+}
+
+// MARK: - Helper Views and Functions
+
+func progressDotsWithNumber(value: Double) -> some View {
+    HStack(spacing: 4) {
+        progressDots(value: value)
+        Text(String(format: "%.1f", value))
+            .font(.system(size: 10, weight: .medium, design: .monospaced))
+            .foregroundColor(Color(.secondaryLabelColor))
+    }
+}
+
+func progressDots(value: Double) -> some View {
+    HStack(spacing: 2) {
+        ForEach(0..<5) { index in
+            Circle()
+                .fill(index < Int(value / 2) ? performanceColor(value: value / 10) : Color(.quaternaryLabelColor))
+                .frame(width: 6, height: 6)
+        }
+    }
+}
+
+func performanceColor(value: Double) -> Color {
+    switch value {
+    case 0.8...1.0: return AppTheme.Status.positive
+    case 0.6..<0.8: return AppTheme.Data.yellow
+    case 0.4..<0.6: return AppTheme.Status.warningStrong
+    default: return AppTheme.Status.error
+    }
+}
+
+func modelStatusPill(_ text: String, systemImage: String) -> some View {
+    Label(text, systemImage: systemImage)
+        .font(.system(size: 11, weight: .medium))
+        .foregroundColor(Color(.secondaryLabelColor))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(AppTheme.Surface.card)
+        .clipShape(Capsule())
 }

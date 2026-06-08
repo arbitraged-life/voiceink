@@ -1,17 +1,13 @@
 import SwiftUI
-import SwiftData
 import OSLog
 
-// ViewType enum with all cases mapped to high-fidelity mockup icons
 enum ViewType: String, CaseIterable, Identifiable {
-    // Primary (top section)
     case metrics = "Dashboard"
     case models = "AI Models"
     case enhancement = "Enhancement"
     case powerMode = "Power Mode"
     case visualSettings = "Visual Settings"
     case settings = "Settings"
-    // Secondary
     case transcribeAudio = "Transcribe Audio"
     case history = "History"
     case permissions = "Permissions"
@@ -152,7 +148,6 @@ struct ContentView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .navigationSplitViewStyle(.balanced)
         .frame(width: 950)
         .frame(minHeight: 730)
         .onAppear {
@@ -162,36 +157,32 @@ struct ContentView: View {
             logger.notice("ContentView disappeared")
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToDestination)) { notification in
-            if let destination = notification.userInfo?["destination"] as? String {
+            if let destination = notification.userInfo?["destination"] as? String,
+               let viewType = ViewType.allCases.first(where: { $0.rawValue == destination }) {
                 logger.notice("navigateToDestination received: \(destination, privacy: .public)")
-                switch destination {
-                case "Settings":
-                    selectedView = .settings
-                case "Visual Settings":
-                    selectedView = .visualSettings
-                case "AI Models":
-                    selectedView = .models
-                case "History":
-                    selectedView = .history
-                case "Enhancement":
-                    selectedView = .enhancement
-                case "Power Mode":
-                    selectedView = .powerMode
-                case "Transcribe Audio":
-                    selectedView = .transcribeAudio
-                case "Permissions":
-                    selectedView = .permissions
-                case "Audio Input":
-                    selectedView = .audioInput
-                case "Dictionary":
-                    selectedView = .dictionary
-                case "VoiceInk Pro":
-                    selectedView = .settings
-                default:
-                    break
-                }
+                selectedView = viewType
             }
         }
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        detailView(for: selectedView)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(detailBackground)
+    }
+
+    private var detailBackground: some View {
+        ZStack {
+            VisualEffectView(
+                material: .sidebar,
+                blendingMode: .behindWindow
+            )
+
+            AppTheme.Surface.window
+                .opacity(0.50)
+        }
+        .ignoresSafeArea(.container, edges: .top)
     }
     
     @ViewBuilder
@@ -220,26 +211,5 @@ struct ContentView: View {
         case .dictionary:
             DictionarySettingsView(whisperPrompt: whisperModelManager.whisperPrompt)
         }
-    }
-}
-
-private struct SidebarItemView: View {
-    let viewType: ViewType
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: viewType.icon)
-                .font(.system(size: 18, weight: .medium))
-                .frame(width: 24, height: 24)
-
-            Text(viewType.rawValue)
-                .font(.system(size: 14, weight: .medium))
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .padding(.vertical, 8)
-        .padding(.horizontal, 2)
     }
 }
